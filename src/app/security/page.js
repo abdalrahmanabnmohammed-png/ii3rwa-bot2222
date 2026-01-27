@@ -1,58 +1,81 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 export default function SecurityPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  
-  // ⚠️ ضع الـ IDs هنا بدقة (تأكد أنها داخل علامات تنصيص "")
-  const OWNER_IDS = ["741981934447493160", ""]; 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [antiLink, setAntiLink] = useState(false);
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push('/login');
-    }
-  }, [status, router]);
+  // 1. مصفوفة الملاك (صلاحيات كاملة)
+  const OWNER_IDS = ["741981934447493160", "000000000000000000"]; 
 
-  // فحص الصلاحية
   const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
 
-  // حماية قصوى: إذا لم يكتمل التحميل أو كان المستخدم متطفلاً
-  if (status === "loading") return <div className="min-h-screen bg-black flex items-center justify-center text-[#A62DC9]">جاري فحص الحماية...</div>;
-  
-  // إذا دخل شخص غريب (ليس مالكاً وليس لديه جلسة)، اطرده فوراً
-  if (!session || (!isOwner && status === "authenticated")) {
-     // ملاحظة: سنضيف فحص الإداريين من القاعدة لاحقاً، حالياً الملاك فقط هم من يدخلون
-     if (!isOwner) {
-       return (
-         <div className="min-h-screen bg-black text-red-500 flex flex-col items-center justify-center p-5 text-center">
-            <h1 className="text-4xl font-bold mb-4">⚠️ وصول غير مصرح به</h1>
-            <p>حسابك ({session?.user?.name}) غير مسجل في قائمة الملاك.</p>
-            <button onClick={() => signOut()} className="mt-5 bg-white text-black px-6 py-2 rounded-lg font-bold">خروج</button>
-         </div>
-       );
-     }
+  // 2. التحقق من الإداريين (سنقوم بجلبهم من MongoDB)
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (isOwner) {
+        setIsAdmin(true);
+        return;
+      }
+      
+      // هنا نقوم بسؤال السيرفر: هل هذا المستخدم إداري؟
+      const res = await fetch(`/api/admins/check?id=${session?.user?.id}`);
+      if (res.ok) setIsAdmin(true);
+    };
+
+    if (session) checkAccess();
+  }, [session, isOwner]);
+
+  if (status === "loading") return <div className="text-white text-center mt-20">جاري فحص الرتبة...</div>;
+
+  // حماية: إذا لم يكن مالكاً ولا إدارياً، اطرده
+  if (!isAdmin && !isOwner) {
+    return <div className="text-red-500 text-center mt-20 font-bold italic">⚠️ ليس لديك صلاحية للوصول لهذه اللوحة</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-12 relative" dir="rtl">
-       {/* تصميمك الجبار هنا */}
-       <div className="max-w-4xl mx-auto border border-[#A62DC9]/20 p-10 rounded-[3rem] bg-white/5 backdrop-blur-xl">
-          <div className="flex items-center gap-5 mb-10">
-            <img src={session.user.image} className="w-16 h-16 rounded-full border-4 border-[#A62DC9]" />
-            <div>
-              <h1 className="text-2xl font-black">{session.user.name}</h1>
-              <span className="bg-[#A62DC9] text-xs px-3 py-1 rounded-full font-bold">👑 مالك المشروع</span>
-            </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-8" dir="rtl">
+      {/* هيدر ترحيبي يتغير حسب الرتبة */}
+      <div className="mb-10 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-black italic">لوحة تحكم <span className="text-[#A62DC9]">ii3RwA</span></h1>
+          <p className="text-xs text-gray-500">مرحباً {session.user.name} ({isOwner ? "مالك" : "إداري"})</p>
+        </div>
+      </div>
+
+      {/* --- قسم المالك فقط (إدارة الفريق) --- */}
+      {isOwner && (
+        <div className="mb-10 p-6 bg-[#A62DC9]/5 border border-[#A62DC9]/20 rounded-3xl">
+          <h2 className="text-lg font-bold text-[#A62DC9] mb-4">👑 إدارة الإداريين (للمالك فقط)</h2>
+          <div className="flex gap-3">
+             <input type="text" placeholder="Discord ID" className="bg-white/5 p-3 rounded-xl flex-1 border border-white/10" />
+             <button className="bg-[#A62DC9] px-6 rounded-xl font-bold">إضافة</button>
           </div>
-          
-          <div className="p-10 border-2 border-dashed border-[#A62DC9]/30 rounded-3xl text-center">
-             <h2 className="text-xl font-bold mb-4 text-[#A62DC9]">نظام إدارة الملاك فعال ✅</h2>
-             <p className="text-gray-400">هذه المنطقة لا يراها إلا الملاك المسجلين في الكود.</p>
+        </div>
+      )}
+
+      {/* --- قسم الإداريين والمالك (خصائص التحكم بالبوت) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-8 bg-white/5 border border-white/10 rounded-[2rem]">
+          <h3 className="text-xl font-bold mb-4 italic">الحماية العامة 🛡️</h3>
+          <div className="flex justify-between items-center bg-black/40 p-4 rounded-2xl">
+            <span>تفعيل منع الروابط</span>
+            <button 
+              onClick={() => setAntiLink(!antiLink)}
+              className={`px-4 py-2 rounded-lg font-bold ${antiLink ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}
+            >
+              {antiLink ? "مفعل" : "معطل"}
+            </button>
           </div>
-       </div>
+        </div>
+
+        <div className="p-8 bg-white/5 border border-white/10 rounded-[2rem] opacity-50">
+          <h3 className="text-xl font-bold mb-2 italic">نظام الترحيب (قريباً) 👋</h3>
+          <p className="text-xs text-gray-500 text-left">Coming Soon</p>
+        </div>
+      </div>
     </div>
   );
 }
