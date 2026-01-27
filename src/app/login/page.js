@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('3bood');
-  const [password, setPassword] = useState('22415262044');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const router = useRouter();
 
   const handleLogin = (e) => {
     e.preventDefault();
     // سيتم التحقق من البيانات هنا - حالياً سنضع قيم افتراضية للشرح
-    if (username === "admin" && password === "123456") {
+    if (username === "3bood" && password === "22415262044") {
       localStorage.setItem("isAdmin", "true");
       router.push('/security');
     } else {
