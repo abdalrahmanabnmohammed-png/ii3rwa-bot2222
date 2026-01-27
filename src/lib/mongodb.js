@@ -3,9 +3,12 @@ import mongoose from 'mongoose';
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('يرجى تعريف متغير MONGODB_URI داخل ملف البيئة');
+  throw new Error('يرجى تعريف متغير MONGODB_URI داخل إعدادات البيئة (Environment Variables) في Vercel');
 }
 
+/**
+ * استخدام الـ Global Cache لمنع إنشاء اتصالات متعددة أثناء التحديث التلقائي (HMR) في التطوير.
+ */
 let cached = global.mongoose;
 
 if (!cached) {
@@ -13,14 +16,27 @@ if (!cached) {
 }
 
 async function connectMongo() {
-  if (cached.conn) return cached.conn;
+  if (cached.conn) {
+    return cached.conn;
+  }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((mongoose) => {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       return mongoose;
     });
   }
-  cached.conn = await cached.promise;
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
   return cached.conn;
 }
 
