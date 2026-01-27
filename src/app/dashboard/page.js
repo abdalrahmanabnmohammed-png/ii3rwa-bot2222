@@ -10,7 +10,7 @@ export default function MainDashboard() {
   const [checking, setChecking] = useState(true);
 
   // مصفوفة الملاك 
-  const OWNER_IDS = ["YOUR_DISCORD_ID_1", "YOUR_DISCORD_ID_2"]; 
+  const OWNER_IDS = ["741981934447493160", "YOUR_DISCORD_ID_2"]; 
 
   useEffect(() => {
     if (status === "unauthenticated") {
