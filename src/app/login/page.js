@@ -9,7 +9,7 @@ export default function LoginPage() {
         <h1 className="text-4xl font-black text-white mb-4 animate-fade-in">ii3RwA <span className="text-[#A62DC9]">System</span></h1>
         <p className="text-gray-400 mb-10">سجل دخولك عبر ديسكورد للتحكم بالبوت</p>
         <button 
-          onClick={() => signIn('discord', { callbackUrl: '/security' })}
+          onClick={() => signIn('discord', { callbackUrl: '/dashboard'})}
           className="w-full bg-[#5865F2] hover:bg-[#4752C4] py-4 rounded-2xl font-bold text-xl text-white shadow-lg transition-all transform hover:scale-105"
         >
           الدخول عبر Discord 🚀
