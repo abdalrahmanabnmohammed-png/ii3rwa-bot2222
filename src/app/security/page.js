@@ -1,40 +1,58 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export default function SecurityPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  const [newAdminId, setNewAdminId] = useState("");
+  const [adminsList, setAdminsList] = useState([]); // سيتم جلبها من المونجو لاحقاً
+  
+  // ضع الأيدي الخاص بك هنا (المالك الوحيد)
+  const OWNER_ID = "YOUR_DISCORD_ID_HERE"; 
 
-  useEffect(() => {
-    // إذا انتهى التحقق وتبين أن المستخدم غير مسجل دخوله، يتم طرده فوراً
-    if (status === "unauthenticated") {
-      router.push('/login');
-    }
-  }, [status, router]);
+  const isOwner = session?.user?.id === OWNER_ID;
 
-  // أثناء التحقق، تظهر صفحة سوداء فارغة لحماية البيانات من الظهور لثانية واحدة
-  if (status === "loading") {
-    return <div className="min-h-screen bg-black flex items-center justify-center text-white">جاري التحقق من الهوية...</div>;
-  }
+  const handleAddAdmin = async () => {
+    if (!isOwner) return alert("فقط المالك يمكنه إضافة إداريين!");
+    // كود إرسال الأيدي لقاعدة البيانات MongoDB
+    console.log("إضافة إداري جديد:", newAdminId);
+    setNewAdminId("");
+  };
 
-  // إذا لم تكن هناك جلسة، لا تعرض أي شيء (حماية إضافية)
-  if (!session) return null;
+  if (status === "loading") return <div className="text-white text-center mt-20">جاري التحقق...</div>;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-10" dir="rtl">
-      <div className="flex justify-between items-center mb-10">
-        <h1 className="text-3xl font-black">لوحة تحكم <span className="text-[#A62DC9]">ii3RwA</span></h1>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-400">{session.user.name}</span>
-          <img src={session.user.image} className="w-10 h-10 rounded-full border border-[#A62DC9]" />
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-8" dir="rtl">
+      <h1 className="text-3xl font-black mb-10">لوحة تحكم <span className="text-[#A62DC9]">ii3RwA</span></h1>
 
-      {/* محتوى لوحة التحكم الجبارة هنا */}
-      <div className="max-w-xl bg-white/5 p-8 rounded-3xl border border-white/10">
-         <p>أنت الآن في منطقة آمنة ومحمية بحسابك في ديسكورد ✅</p>
+      {/* قسم خاص بالمالك فقط - لإضافة الإداريين */}
+      {isOwner && (
+        <div className="mb-12 p-6 bg-white/5 border-2 border-[#A62DC9]/30 rounded-[2rem] animate-fade-in">
+          <h2 className="text-xl font-bold mb-4 text-[#A62DC9]">👑 إدارة طاقم العمل (للمالك فقط)</h2>
+          <div className="flex gap-4">
+            <input 
+              type="text" 
+              value={newAdminId}
+              onChange={(e) => setNewAdminId(e.target.value)}
+              placeholder="ضع Discord ID للإداري الجديد"
+              className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl outline-none focus:border-[#A62DC9]"
+            />
+            <button 
+              onClick={handleAddAdmin}
+              className="bg-[#A62DC9] px-8 rounded-xl font-bold hover:bg-[#8e24ab] transition"
+            >
+              إضافة إداري
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* باقي أدوات التحكم (تظهر لكل الإداريين المعتمدين) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-8 bg-white/5 border border-white/10 rounded-3xl">
+          <h3 className="text-xl font-bold mb-2">🛡️ حماية السيرفر</h3>
+          <p className="text-gray-400">هذا القسم متاح لك وللإداريين الذين قمت بإضافتهم.</p>
+        </div>
       </div>
     </div>
   );
