@@ -7,7 +7,7 @@ export default function SecurityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const OWNER_IDS = ["123456789012345678", "000000000000000000"]; 
+  const OWNER_IDS = ["741981934447493160", "000000000000000000"]; 
   const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
 
   useEffect(() => {
