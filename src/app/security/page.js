@@ -1,26 +1,24 @@
 "use client";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import React, { useState } from 'react';
 
 export default function SecurityPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const [antiLink, setAntiLink] = useState(false);
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push('/login');
-    }
-  }, [status, router]);
-
-  if (status === "loading") return <p className="text-white text-center mt-20">جاري التحقق...</p>;
-  if (!session) return null;
-
-  // هنا تضع كود الأزرار والـ API الخاص بك
   return (
-    <div className="text-white p-10">
-      <h1>مرحباً {session.user.name}</h1>
-      {/* باقي كود اللوحة... */}
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-10" dir="rtl">
+      <h1 className="text-3xl font-black mb-8">لوحة تحكم الحماية 🛡️</h1>
+      <div className="max-w-xl bg-white/5 p-8 rounded-3xl border border-white/10">
+        <div className="flex justify-between items-center mb-6">
+          <span>تفعيل منع الروابط</span>
+          <button 
+            onClick={() => setAntiLink(!antiLink)}
+            className={`w-14 h-8 rounded-full transition-all ${antiLink ? 'bg-[#A62DC9]' : 'bg-gray-700'}`}
+          >
+            <div className={`w-6 h-6 bg-white rounded-full transition-all transform ${antiLink ? 'translate-x-1' : 'translate-x-7'}`} />
+          </button>
+        </div>
+        <button className="w-full bg-[#A62DC9] py-3 rounded-xl font-bold">حفظ الإعدادات</button>
+      </div>
     </div>
   );
 }
