@@ -14,8 +14,11 @@ export default function SecurityPage() {
   const [message, setMessage] = useState("");
 
   // --- إعدادات الرتب ---
-  const OWNER_ID = "YOUR_DISCORD_ID_HERE"; // ⚠️ ضع الآيدي الخاص بك هنا
-  const isOwner = session?.user?.id === OWNER_ID;
+// بدلاً من رقم واحد، نضع قائمة بالأرقام المسموح لها بصلاحيات المالك
+const OWNER_IDS = ["741981934447493160", "الآيدي_الخاص_بالمالك_الجديد"];
+
+// وتعديل شرط التحقق ليصبح:
+const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
 
   useEffect(() => {
     if (status === "unauthenticated") {
