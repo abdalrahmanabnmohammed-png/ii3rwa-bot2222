@@ -2,106 +2,134 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+export default function SecurityPage() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+  const [antiLink, setAntiLink] = useState(false);
+  const [antiSpam, setAntiSpam] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
 
-  // تنظيف أي محاولة دخول سابقة عند فتح الصفحة
+  // معرف السيرفر (يمكنك تغييره لاحقاً ليكون ديناميكياً)
+  const guildId = "123456789"; 
+
+  // 1. حماية الصفحة من الدخول المباشر
   useEffect(() => {
-    localStorage.removeItem("isAdmin");
-  }, []);
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // بيانات الدخول (تأكد من كتابتها هكذا حالياً للتجربة)
-    const ADMIN_USER = "admin";
-    const ADMIN_PASS = "123456";
-
-    if (username === ADMIN_USER && password === ADMIN_PASS) {
-      // 1. تخزين حالة الدخول في المتصفح
-      localStorage.setItem("isAdmin", "true");
-      
-      // 2. إظهار رسالة نجاح بسيطة
-      console.log("تم تسجيل الدخول بنجاح، جاري التحويل...");
-
-      // 3. التحويل لصفحة الحماية (محاولتين لضمان العمل)
-      router.push('/security'); 
-      setTimeout(() => {
-        window.location.href = '/security';
-      }, 800);
-      
+    const isAdmin = localStorage.getItem("isAdmin");
+    if (isAdmin === "true") {
+      setAuthorized(true);
     } else {
-      setError("❌ اسم المستخدم أو كلمة المرور غير صحيحة");
+      router.push('/login'); // طرد المستخدم إذا لم يسجل دخوله
+    }
+  }, [router]);
+
+  // 2. دالة حفظ الإعدادات في MongoDB
+  const saveSettings = async () => {
+    setLoading(true);
+    setStatus("جاري الحفظ في القاعدة...");
+    
+    try {
+      const response = await fetch('/api/security', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guildId,
+          settings: { antiLink, antiSpam }
+        }),
+      });
+
+      if (response.ok) {
+        setStatus("✅ تم تحديث إعدادات البوت بنجاح!");
+      } else {
+        setStatus("❌ فشل الاتصال بالقاعدة.");
+      }
+    } catch (error) {
+      setStatus("❌ حدث خطأ غير متوقع.");
+    } finally {
       setLoading(false);
+      setTimeout(() => setStatus(""), 4000);
     }
   };
 
+  // 3. دالة تسجيل الخروج
+  const handleLogout = () => {
+    localStorage.removeItem("isAdmin");
+    window.location.href = '/login';
+  };
+
+  // إذا لم يكن مخولاً، لا نعرض شيئاً حتى يتم التحويل
+  if (!authorized) return <div className="bg-black min-h-screen"></div>;
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-8 relative overflow-hidden" dir="rtl">
       
-      {/* دوائر ضوئية في الخلفية للتصميم الجبار */}
-      <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-[#A62DC9] opacity-20 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-96 h-96 bg-blue-600 opacity-20 blur-[120px] rounded-full"></div>
+      {/* خلفية ضوئية */}
+      <div className="absolute top-[-10%] right-[-5%] w-80 h-80 bg-[#A62DC9] opacity-10 blur-[100px] rounded-full"></div>
 
-      <div className="relative z-10 w-full max-w-md animate-fade-in">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-2xl shadow-black">
-          
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-black text-white mb-2">تسجيل الدخول</h1>
-            <p className="text-gray-400 font-medium">لوحة تحكم ii3RwA System</p>
+      {/* زر تسجيل الخروج */}
+      <button 
+        onClick={handleLogout}
+        className="fixed top-6 left-6 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-5 py-2 rounded-xl border border-red-500/20 transition-all font-bold text-sm z-50"
+      >
+        تسجيل الخروج 🚪
+      </button>
+
+      <header className="max-w-4xl mx-auto mb-16 text-center animate-fade-in">
+        <h1 className="text-4xl font-black text-white mb-3">
+          تحكم الحماية <span className="text-[#A62DC9]">ii3RwA</span>
+        </h1>
+        <p className="text-gray-400 font-medium">قم بتعديل خصائص البوت وسيقوم بتنفيذها فوراً في الديسكورد.</p>
+      </header>
+
+      <div className="max-w-2xl mx-auto space-y-6 relative z-10">
+        
+        {/* بطاقة منع الروابط */}
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-[2rem] flex justify-between items-center group hover:border-[#A62DC9]/50 transition-all">
+          <div>
+            <h3 className="text-xl font-bold mb-1">نظام منع الروابط 🔗</h3>
+            <p className="text-gray-500 text-sm">سيقوم البوت بحذف أي رابط يتم إرساله.</p>
           </div>
+          <button 
+            onClick={() => setAntiLink(!antiLink)}
+            className={`w-16 h-9 flex items-center rounded-full p-1 transition-colors duration-300 ${antiLink ? 'bg-[#A62DC9]' : 'bg-gray-700'}`}
+          >
+            <div className={`bg-white w-7 h-7 rounded-full shadow-lg transform transition-transform duration-300 ${antiLink ? '-translate-x-7' : 'translate-x-0'}`} />
+          </button>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-gray-400 mb-2 mr-2 text-sm">اسم المستخدم</label>
-              <input 
-                type="text" 
-                required
-                className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-white focus:border-[#A62DC9] focus:ring-1 focus:ring-[#A62DC9] outline-none transition-all duration-300"
-                placeholder="أدخل اليوزر"
-                onChange={(e) => setUsername(e.target.value)}
-              />
+        {/* بطاقة منع السبام */}
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-[2rem] flex justify-between items-center group hover:border-[#A62DC9]/50 transition-all">
+          <div>
+            <h3 className="text-xl font-bold mb-1">نظام منع التكرار ⚡</h3>
+            <p className="text-gray-500 text-sm">حماية السيرفر من الرسائل المتكررة.</p>
+          </div>
+          <button 
+            onClick={() => setAntiSpam(!antiSpam)}
+            className={`w-16 h-9 flex items-center rounded-full p-1 transition-colors duration-300 ${antiSpam ? 'bg-[#A62DC9]' : 'bg-gray-700'}`}
+          >
+            <div className={`bg-white w-7 h-7 rounded-full shadow-lg transform transition-transform duration-300 ${antiSpam ? '-translate-x-7' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        {/* زر الحفظ */}
+        <div className="pt-6">
+          <button 
+            onClick={saveSettings}
+            disabled={loading}
+            className={`w-full py-5 rounded-2xl font-black text-xl shadow-xl transition-all transform active:scale-95 ${
+              loading 
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+              : 'bg-[#A62DC9] hover:bg-[#8e24ab] text-white shadow-[#A62DC9]/20'
+            }`}
+          >
+            {loading ? 'انتظر قليلاً...' : 'حفظ التعديلات الآن'}
+          </button>
+          
+          {status && (
+            <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10 text-center animate-bounce text-sm font-bold">
+              {status}
             </div>
-
-            <div>
-              <label className="block text-gray-400 mb-2 mr-2 text-sm">كلمة المرور</label>
-              <input 
-                type="password" 
-                required
-                className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-white focus:border-[#A62DC9] focus:ring-1 focus:ring-[#A62DC9] outline-none transition-all duration-300"
-                placeholder="••••••••"
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-500 text-center text-sm font-bold animate-bounce">
-                {error}
-              </p>
-            )}
-
-            <button 
-              type="submit"
-              disabled={loading}
-              className={`w-full py-4 rounded-2xl font-black text-xl text-white shadow-lg transition-all transform active:scale-95 ${
-                loading 
-                ? 'bg-gray-600 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-[#A62DC9] to-[#6a1b9a] hover:shadow-[#A62DC9]/40 hover:scale-[1.02]'
-              }`}
-            >
-              {loading ? 'جاري التحقق...' : 'دخول للمنصة 🚀'}
-            </button>
-          </form>
-
-          <p className="text-center mt-8 text-gray-500 text-xs">
-            حميع الحقوق محفوظة لـ ii3RwA System &copy; 2026
-          </p>
+          )}
         </div>
       </div>
     </div>
