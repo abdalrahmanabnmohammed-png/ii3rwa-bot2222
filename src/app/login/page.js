@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('3bood');
+  const [password, setPassword] = useState('22415262044');
   const router = useRouter();
 
   const handleLogin = (e) => {
