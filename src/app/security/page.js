@@ -6,49 +6,75 @@ import { useEffect, useState } from "react";
 export default function SecurityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
-  const OWNER_IDS = ["741981934447493160", "000000000000000000"]; 
-  const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // ⚠️ أضف الـ IDs الخاصة بالملاك هنا (هؤلاء فقط من سيدخلون حالياً)
+  const OWNER_IDS = ["741981934447493160", "000000000000"]; 
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push('/login');
-    }
-  }, [status, router]);
+    const checkAccess = async () => {
+      if (status === "unauthenticated") {
+        router.push('/login');
+        return;
+      }
 
-  if (status === "loading") return <div className="min-h-screen bg-black flex items-center justify-center text-[#A62DC9]">جاري الفحص...</div>;
-  if (!session) return null;
+      if (status === "authenticated" && session?.user?.id) {
+        // 1. فحص هل هو مالك؟
+        if (OWNER_IDS.includes(session.user.id)) {
+          setIsAuthorized(true);
+          setChecking(false);
+          return;
+        }
+
+        // 2. فحص هل هو إداري مضاف في قاعدة البيانات؟
+        try {
+          const res = await fetch(`/api/admins/check?id=${session.user.id}`);
+          if (res.ok) {
+            setIsAuthorized(true);
+          } else {
+            // إذا لم يكن مالكاً ولا إدارياً، اطرده فوراً
+            setIsAuthorized(false);
+            alert("عذراً، لا تملك صلاحيات لدخول هذه اللوحة.");
+            signOut({ callbackUrl: '/login' });
+          }
+        } catch (error) {
+          console.error("خطأ في التحقق من الصلاحيات");
+        }
+        setChecking(false);
+      }
+    };
+
+    checkAccess();
+  }, [status, session, router]);
+
+  // شاشة التحميل لمنع ظهور المحتوى لثانية واحدة (Flash of Content)
+  if (status === "loading" || checking) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-[#A62DC9] font-black animate-pulse text-2xl">
+          جاري التحقق من الهوية... 🛡️
+        </div>
+      </div>
+    );
+  }
+
+  // منع الرندر تماماً إذا لم يكن مخولاً
+  if (!isAuthorized) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-6" dir="rtl">
-      <div className="max-w-5xl mx-auto">
-        <header className="flex justify-between items-center mb-10 bg-white/5 p-5 rounded-3xl border border-white/10">
-          <div className="flex items-center gap-4">
-            <img src={session.user.image} className="w-12 h-12 rounded-full border-2 border-[#A62DC9]" alt="avatar" />
-            <div>
-              <p className="font-bold">{session.user.name}</p>
-              <p className="text-[10px] text-[#A62DC9] font-black">{isOwner ? "👑 OWNER" : "🛡️ ADMIN"}</p>
-            </div>
-          </div>
-          <button onClick={() => signOut()} className="text-red-500 text-sm font-bold bg-red-500/10 px-4 py-2 rounded-xl">خروج</button>
-        </header>
-
-        {isOwner && (
-          <section className="mb-10 p-8 bg-white/5 border-2 border-[#A62DC9]/20 rounded-[2.5rem] animate-fade-in">
-            <h2 className="text-xl font-black mb-4 text-[#A62DC9]">إدارة طاقم الإدارة</h2>
-            <div className="flex gap-4">
-              <input type="text" placeholder="Discord User ID" className="flex-1 bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-[#A62DC9]" />
-              <button className="bg-[#A62DC9] px-10 rounded-2xl font-black">إضافة إداري</button>
-            </div>
-          </section>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-8 bg-white/5 border border-white/10 rounded-[2rem] hover:border-[#A62DC9]/50 transition-all">
-            <h3 className="text-xl font-black mb-4 italic">منع الروابط 🔗</h3>
-            <button className="w-full py-4 rounded-xl font-bold bg-[#A62DC9]/10 text-[#A62DC9] border border-[#A62DC9]">تحكم بالخاصية</button>
-          </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-10" dir="rtl">
+      <header className="flex justify-between items-center mb-10 border-b border-white/10 pb-5">
+        <h1 className="text-3xl font-black italic">ii3RwA <span className="text-[#A62DC9]">Dashboard</span></h1>
+        <div className="flex items-center gap-4">
+          <img src={session.user.image} className="w-10 h-10 rounded-full border-2 border-[#A62DC9]" />
+          <button onClick={() => signOut()} className="bg-red-500/20 text-red-500 px-4 py-1 rounded-lg text-xs font-bold">خروج</button>
         </div>
+      </header>
+
+      <div className="bg-white/5 p-10 rounded-[3rem] border border-[#A62DC9]/30 text-center animate-fade-in">
+        <h2 className="text-2xl font-bold mb-4">أهلاً بك في منطقة الحماية ✅</h2>
+        <p className="text-gray-400 italic">هذه اللوحة محمية، لا يمكن لأي شخص غريب رؤية ما تراه الآن.</p>
       </div>
     </div>
   );
