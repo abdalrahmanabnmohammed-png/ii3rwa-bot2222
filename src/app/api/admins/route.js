@@ -4,17 +4,14 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-const OWNER_ID = "YOUR_DISCORD_ID_HERE"; // ضع الأيدي الخاص بك هنا
+// ⚠️ يجب أن تكون نفس القائمة الموجودة في الـ Frontend
+const OWNER_IDS = ["YOUR_DISCORD_ID_1", "YOUR_DISCORD_ID_2"];
 
 export async function POST(req) {
   const session = await getServerSession(authOptions);
 
-  // 1. التحقق من تسجيل الدخول
-  if (!session) return NextResponse.json({ error: "غير مصرح لك" }, { status: 401 });
-
-  // 2. التحقق من أن المرسل هو المالك (أنت فقط)
-  if (session.user.id !== OWNER_ID) {
-    return NextResponse.json({ error: "فقط المالك يمكنه إضافة إداريين" }, { status: 403 });
+  if (!session || !OWNER_IDS.includes(session.user.id)) {
+    return NextResponse.json({ error: "غير مصرح لك: فقط الملاك يمكنهم إضافة إداريين" }, { status: 403 });
   }
 
   try {
@@ -22,15 +19,15 @@ export async function POST(req) {
     await connectMongo();
 
     const existingAdmin = await Admin.findOne({ discordId: newAdminId });
-    if (existingAdmin) return NextResponse.json({ error: "هذا الإداري موجود بالفعل" }, { status: 400 });
+    if (existingAdmin) return NextResponse.json({ error: "الإداري موجود مسبقاً" }, { status: 400 });
 
     const newAdmin = await Admin.create({
       discordId: newAdminId,
-      addedBy: OWNER_ID
+      addedBy: session.user.id
     });
 
-    return NextResponse.json({ message: "تمت إضافة الإداري بنجاح", admin: newAdmin });
+    return NextResponse.json({ message: "تمت الإضافة", admin: newAdmin });
   } catch (error) {
-    return NextResponse.json({ error: "حدث خطأ في السيرفر" }, { status: 500 });
+    return NextResponse.json({ error: "فشل في حفظ البيانات" }, { status: 500 });
   }
 }
