@@ -7,21 +7,20 @@ export default function SecurityManagement() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // حالات الإدخال والبيانات
   const [adminId, setAdminId] = useState("");
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [antiLink, setAntiLink] = useState(false);
 
-  // مصفوفة الملاك (الذين يحق لهم إضافة آخرين)
-  const OWNER_IDS = ["YOUR_DISCORD_ID_1", "YOUR_DISCORD_ID_2"];
+  // ⚠️ تأكد أن هذه الأرقام مطابقة تماماً للـ ID الخاص بك (بدون مسافات)
+  const OWNER_IDS = ["741981934447493160", "000000000000000000"];
+  
+  // التحقق من صلاحية المالك
   const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
 
-  // جلب قائمة الإداريين عند تحميل الصفحة
   useEffect(() => {
     if (status === "unauthenticated") router.push('/login');
-    fetchAdmins();
-  }, [status]);
+    if (isOwner) fetchAdmins(); // جلب القائمة فقط إذا كان مالكاً
+  }, [status, isOwner]);
 
   const fetchAdmins = async () => {
     const res = await fetch('/api/admins');
@@ -32,95 +31,68 @@ export default function SecurityManagement() {
   };
 
   const handleAddAdmin = async () => {
-    if (!adminId) return alert("يرجى إدخال ID صحيح");
+    if (!adminId) return alert("أدخل ID صحيح");
     setLoading(true);
-    
     const res = await fetch('/api/admins', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newAdminId: adminId })
     });
-
     if (res.ok) {
-      alert("✅ تمت إضافة الإداري بنجاح");
+      alert("✅ تمت الإضافة بنجاح");
       setAdminId("");
       fetchAdmins();
     } else {
       const data = await res.json();
-      alert(`❌ خطأ: ${data.error}`);
+      alert(`❌ ${data.error}`);
     }
     setLoading(false);
   };
 
-  if (status === "loading") return <div className="min-h-screen bg-black flex items-center justify-center text-[#A62DC9]">جاري التحميل...</div>;
+  if (status === "loading") return <div className="min-h-screen bg-black flex items-center justify-center text-[#A62DC9]">جاري التحقق...</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-12" dir="rtl">
-      <header className="max-w-4xl mx-auto mb-10 flex justify-between items-center">
-        <button onClick={() => router.push('/dashboard')} className="text-gray-500 hover:text-[#A62DC9] font-bold">← العودة للوحة الرئيسية</button>
-        <h1 className="text-2xl font-black italic">نظام <span className="text-red-500">الحماية والإدارة</span></h1>
-      </header>
+      
+      {/* للتأكد من الـ ID الخاص بك (يمكنك حذفه لاحقاً) */}
+      <div className="text-[10px] text-gray-700 mb-2">DEBUG: Your ID is {session?.user?.id}</div>
 
-      <div className="max-w-4xl mx-auto space-y-8">
-        
-        {/* القسم الأول: إضافة المتحكمين (يظهر للملاك فقط) */}
-        {isOwner && (
-          <section className="bg-white/5 border border-[#A62DC9]/30 p-8 rounded-[2.5rem] backdrop-blur-xl">
-            <h2 className="text-xl font-bold mb-6 text-[#A62DC9] flex items-center gap-2">
-              <span>🔑</span> إضافة متحكمين جدد
-            </h2>
+      <div className="max-w-4xl mx-auto">
+        <button onClick={() => router.push('/dashboard')} className="mb-6 text-gray-500 hover:text-[#A62DC9] font-bold">← العودة للوحة الرئيسية</button>
+
+        {/* خانة إضافة الإداريين - تظهر فقط للملاك */}
+        {isOwner ? (
+          <section className="bg-white/5 border border-[#A62DC9]/30 p-8 rounded-[2.5rem] mb-10 shadow-2xl">
+            <h2 className="text-xl font-bold mb-6 text-[#A62DC9]">🔑 إضافة صلاحيات التحكم</h2>
             <div className="flex gap-4 mb-8">
               <input 
                 type="text" 
                 value={adminId}
                 onChange={(e) => setAdminId(e.target.value)}
-                placeholder="أدخل Discord User ID"
-                className="flex-1 bg-black/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-[#A62DC9] transition-all"
+                placeholder="أدخل Discord ID"
+                className="flex-1 bg-black/50 border border-white/10 p-4 rounded-xl outline-none focus:border-[#A62DC9]"
               />
-              <button 
-                onClick={handleAddAdmin}
-                disabled={loading}
-                className="bg-[#A62DC9] px-8 rounded-2xl font-black hover:scale-95 transition-all disabled:opacity-50"
-              >
-                {loading ? "جاري الإضافة..." : "إضافة صلاحية"}
+              <button onClick={handleAddAdmin} disabled={loading} className="bg-[#A62DC9] px-8 rounded-xl font-bold">
+                {loading ? "جاري الإرسال..." : "إضافة إداري"}
               </button>
             </div>
 
-            {/* عرض قائمة المضافين */}
             <div className="space-y-3">
-              <p className="text-xs text-gray-500 font-bold uppercase mb-2">الإداريين الحاليين:</p>
-              {admins.map((admin) => (
-                <div key={admin.discordId} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="font-mono text-sm text-gray-300">{admin.discordId}</span>
-                  <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-1 rounded-md font-bold">نشط ✅</span>
+              <p className="text-xs text-gray-500 font-bold mb-2">طاقم الإدارة المضاف:</p>
+              {admins.length > 0 ? admins.map((admin) => (
+                <div key={admin._id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                  <span className="text-sm font-mono">{admin.discordId}</span>
+                  <span className="text-[10px] text-green-500 font-bold">معتمد ✅</span>
                 </div>
-              ))}
+              )) : <p className="text-gray-600 text-sm italic">لا يوجد إداريين مضافين حالياً.</p>}
             </div>
           </section>
-        )}
-
-        {/* القسم الثاني: إعدادات الحماية (يظهر للجميع المعتمدين) */}
-        <section className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem]">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <span>🛡️</span> إعدادات حماية السيرفر
-          </h2>
-          <div className="flex justify-between items-center bg-black/40 p-6 rounded-3xl border border-white/5">
-            <div>
-              <p className="font-bold">منع الروابط (Anti-Link)</p>
-              <p className="text-xs text-gray-500">حذف الروابط تلقائياً لحماية السيرفر من السبام.</p>
-            </div>
-            <button 
-              onClick={() => setAntiLink(!antiLink)}
-              className={`w-14 h-8 rounded-full transition-all relative ${antiLink ? 'bg-[#A62DC9]' : 'bg-gray-700'}`}
-            >
-              <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-all ${antiLink ? 'left-1' : 'left-7'}`} />
-            </button>
+        ) : (
+          <div className="bg-red-500/10 p-10 rounded-3xl border border-red-500/20 text-center">
+             <h2 className="text-xl font-bold text-red-500 mb-2">🛡️ وصول محدود</h2>
+             <p className="text-gray-400">أنت الآن في وضع "الإداري"، يمكنك التحكم في خصائص البوت فقط ولا يمكنك إضافة إداريين آخرين.</p>
           </div>
-          <button className="w-full mt-8 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl font-black transition-all">
-            حفظ إعدادات الحماية
-          </button>
-        </section>
-
+        )}
       </div>
     </div>
   );
