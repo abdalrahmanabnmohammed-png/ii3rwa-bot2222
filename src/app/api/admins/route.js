@@ -5,7 +5,7 @@ import { authOptions } from "../api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
 // قائمة الملاك (يجب أن تتطابق مع الصفحة الرئيسية)
-const OWNER_IDS = ["123456789012345678", "000000000000000000"]; 
+const OWNER_IDS = ["741981934447493160", "000000000000000000"]; 
 
 // دالة جلب قائمة الإداريين
 export async function GET() {
