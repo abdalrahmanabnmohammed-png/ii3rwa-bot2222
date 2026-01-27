@@ -1,46 +1,19 @@
 "use client";
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const router = useRouter();
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    
-    // البيانات الافتراضية للتجربة (يمكنك تغييرها لاحقاً)
-    if (username === "admin" && password === "123456") {
-      localStorage.setItem("isAdmin", "true");
-      window.location.href = '/security'; // استخدام التحويل المباشر لضمان النجاح
-    } else {
-      alert("البيانات خاطئة!");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6" dir="rtl">
-      <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl">
-        <h1 className="text-3xl font-black text-white text-center mb-8">دخول الإدارة 🔐</h1>
+      <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] text-center">
+        <h1 className="text-4xl font-black text-white mb-8 text-[#A62DC9]">ii3RwA System</h1>
+        <p className="text-gray-400 mb-10">يرجى تسجيل الدخول بحساب ديسكورد للوصول للوحة التحكم</p>
         
-        <form onSubmit={handleLogin} className="space-y-6">
-          <input 
-            type="text" 
-            placeholder="اسم المستخدم"
-            className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-[#A62DC9]"
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input 
-            type="password" 
-            placeholder="كلمة المرور"
-            className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-[#A62DC9]"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button className="w-full bg-[#A62DC9] py-4 rounded-xl font-bold text-xl hover:scale-105 transition shadow-lg shadow-[#A62DC9]/20">
-            دخول للمنصة 🚀
-          </button>
-        </form>
+        <button 
+          onClick={() => signIn('discord', { callbackUrl: '/security' })}
+          className="w-full bg-[#5865F2] hover:bg-[#4752C4] py-4 rounded-2xl font-bold text-xl text-white flex items-center justify-center gap-3 transition-all"
+        >
+          <span>تسجيل الدخول عبر Discord</span>
+        </button>
       </div>
     </div>
   );
