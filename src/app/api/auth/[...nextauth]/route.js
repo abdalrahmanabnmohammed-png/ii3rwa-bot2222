@@ -21,3 +21,14 @@ export const authOptions = {
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
+// أضف هذا الجزء داخل callbacks في ملف التعديل السابق
+callbacks: {
+  async session({ session, token }) {
+    session.user.id = token.sub;
+    
+    // جلب بيانات الإداري من قاعدة البيانات (اختياري لزيادة الأمان)
+    // session.user.role = await getAdminRole(token.sub); 
+    
+    return session;
+  },
+},
