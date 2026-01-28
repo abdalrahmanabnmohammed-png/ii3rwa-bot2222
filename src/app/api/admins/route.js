@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-const OWNER_IDS = ["123456789012345678"]; // ⚠️ ضع الآيدي الخاص بك هنا
+const OWNER_IDS = ["741981934447493160"]; // ⚠️ ضع الآيدي الخاص بك هنا
 const GUILD_ID = "1349181448099336303"; 
 
 export async function POST(req) {
