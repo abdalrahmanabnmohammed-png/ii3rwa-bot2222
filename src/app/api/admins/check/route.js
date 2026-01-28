@@ -8,7 +8,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const OWNER_IDS = ["123456789012345678"]; // ضع الآيدي الخاص بك
+  const OWNER_IDS = ["741981934447493160"]; // ضع الآيدي الخاص بك
   if (OWNER_IDS.includes(session.user.id)) return NextResponse.json({ ok: true });
 
   await connectMongo();
