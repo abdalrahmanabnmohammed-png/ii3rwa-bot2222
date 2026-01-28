@@ -1,37 +1,44 @@
 import connectMongo from "@/lib/mongodb";
 import Security from "@/models/Security";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-// دالة لجلب البيانات (GET) لإظهار الإعدادات الحالية في الموقع
-export async function GET(request) {
-    try {
-        await connectMongo();
-        const { searchParams } = new URL(request.url);
-        const guildId = searchParams.get("guildId");
+const GUILD_ID = "1349181448099336303";
 
-        const settings = await Security.findOne({ guildId });
-        return NextResponse.json(settings || { message: "لا توجد إعدادات لهذا السيرفر" }, { status: 200 });
-    } catch (error) {
-        return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
-    }
+export async function GET() {
+  await connectMongo();
+  let config = await Security.findOne({ guildId: GUILD_ID });
+  if (!config) config = await Security.create({ guildId: GUILD_ID });
+  return NextResponse.json(config);
 }
 
-// دالة لتحديث البيانات (POST) عند الضغط على زر الحفظ
-export async function POST(request) {
-    try {
-        await connectMongo();
-        const data = await request.json();
-        const { guildId, settings } = data;
+export async function POST(req) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
-        // تحديث الإعدادات أو إنشاؤها إذا لم تكن موجودة (Upsert)
-        const updatedSettings = await Security.findOneAndUpdate(
-            { guildId },
-            { $set: { settings, updatedAt: Date.now() } },
-            { upsert: true, new: true }
-        );
+    const body = await req.json();
+    await connectMongo();
 
-        return NextResponse.json({ message: "تم حفظ الإعدادات بنجاح", data: updatedSettings }, { status: 200 });
-    } catch (error) {
-        return NextResponse.json({ error: "فشل في حفظ البيانات" }, { status: 500 });
-    }
+    const updateData = {
+      ...body,
+      $push: {
+        dashboardLogs: {
+          action: "تحديث إعدادات الحماية",
+          adminId: session.user.id
+        }
+      }
+    };
+
+    const config = await Security.findOneAndUpdate(
+      { guildId: GUILD_ID },
+      updateData,
+      { upsert: true, new: true }
+    );
+
+    return NextResponse.json(config);
+  } catch (error) {
+    return NextResponse.json({ error: "خطأ في السيرفر" }, { status: 500 });
+  }
 }
