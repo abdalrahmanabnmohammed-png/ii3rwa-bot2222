@@ -4,133 +4,82 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-// ⚠️ تأكد أن هذا هو نفس الـ ID الخاص بك
+// ⚠️ ضع هنا الآيدي الخاص بك بدقة
 const OWNER_IDS = ["741981934447493160"]; 
 
-export async function POST(req) {
+// دالة جلب بيانات مستخدم من ديسكورد
+async function getDiscordUser(userId) {
   try {
-    const session = await getServerSession(authOptions);
-
-    // التحقق من الجلسة
-    if (!session || !OWNER_IDS.includes(session.user.id)) {
-      return NextResponse.json({ error: "غير مصرح لك بالقيام بهذه العملية" }, { status: 403 });
-    }
-
-    const { newAdminId } = await req.json();
-
-    // التحقق من صحة المدخلات
-    if (!newAdminId || newAdminId.length < 17) {
-      return NextResponse.json({ error: "يرجى إدخال ID ديسكورد صحيح ومكون من 17-19 رقم" }, { status: 400 });
-    }
-
-    await connectMongo();
-
-    // منع تكرار الإداري
-    const existingAdmin = await Admin.findOne({ discordId: newAdminId });
-    if (existingAdmin) {
-      return NextResponse.json({ error: "هذا الإداري موجود بالفعل في النظام" }, { status: 400 });
-    }
-
-    // الحفظ الفعلي
-    const createdAdmin = await Admin.create({
-      discordId: newAdminId,
-      addedBy: session.user.id
+    const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
     });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) { return null; }
+}
 
-    return NextResponse.json({ message: "تمت الإضافة بنجاح", admin: createdAdmin }, { status: 201 });
+// 1. دالة GET (لجلب قائمة الإداريين وعرضها في الصفحة)
+export async function GET() {
+  try {
+    await connectMongo();
+    const adminsData = await Admin.find({});
+    
+    const adminsWithInfo = await Promise.all(adminsData.map(async (admin) => {
+      const discordInfo = await getDiscordUser(admin.discordId);
+      return {
+        discordId: admin.discordId,
+        username: discordInfo?.global_name || discordInfo?.username || "إداري غير معروف",
+        avatar: discordInfo?.avatar 
+          ? `https://cdn.discordapp.com/avatars/${admin.discordId}/${discordInfo.avatar}.png`
+          : "https://cdn.discordapp.com/embed/avatars/0.png"
+      };
+    }));
 
+    return NextResponse.json({ admins: adminsWithInfo });
   } catch (error) {
-    console.error("Database Error:", error);
-    return NextResponse.json({ error: "فشل الاتصال بقاعدة البيانات. تأكد من إعدادات MONGODB_URI في Vercel" }, { status: 500 });
+    return NextResponse.json({ error: "فشل جلب البيانات" }, { status: 500 });
   }
-}import connectMongo from "@/lib/mongodb";
-import Admin from "@/models/Admin";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { NextResponse } from "next/server";
+}
 
-// ⚠️ تأكد أن هذا هو نفس الـ ID الخاص بك
-const OWNER_IDS = ["123456789012345678"]; 
-
+// 2. دالة POST (لإضافة إداري جديد)
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-
-    // التحقق من الجلسة
     if (!session || !OWNER_IDS.includes(session.user.id)) {
-      return NextResponse.json({ error: "غير مصرح لك بالقيام بهذه العملية" }, { status: 403 });
+      return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
     }
 
     const { newAdminId } = await req.json();
-
-    // التحقق من صحة المدخلات
     if (!newAdminId || newAdminId.length < 17) {
-      return NextResponse.json({ error: "يرجى إدخال ID ديسكورد صحيح ومكون من 17-19 رقم" }, { status: 400 });
+      return NextResponse.json({ error: "ID غير صحيح" }, { status: 400 });
     }
 
     await connectMongo();
+    const existing = await Admin.findOne({ discordId: newAdminId });
+    if (existing) return NextResponse.json({ error: "موجود مسبقاً" }, { status: 400 });
 
-    // منع تكرار الإداري
-    const existingAdmin = await Admin.findOne({ discordId: newAdminId });
-    if (existingAdmin) {
-      return NextResponse.json({ error: "هذا الإداري موجود بالفعل في النظام" }, { status: 400 });
-    }
-
-    // الحفظ الفعلي
-    const createdAdmin = await Admin.create({
-      discordId: newAdminId,
-      addedBy: session.user.id
-    });
-
-    return NextResponse.json({ message: "تمت الإضافة بنجاح", admin: createdAdmin }, { status: 201 });
-
+    await Admin.create({ discordId: newAdminId, addedBy: session.user.id });
+    return NextResponse.json({ message: "تمت الإضافة بنجاح" });
   } catch (error) {
-    console.error("Database Error:", error);
-    return NextResponse.json({ error: "فشل الاتصال بقاعدة البيانات. تأكد من إعدادات MONGODB_URI في Vercel" }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في السيرفر" }, { status: 500 });
   }
-}import connectMongo from "@/lib/mongodb";
-import Admin from "@/models/Admin";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { NextResponse } from "next/server";
+}
 
-// ⚠️ تأكد أن هذا هو نفس الـ ID الخاص بك
-const OWNER_IDS = ["123456789012345678"]; 
-
-export async function POST(req) {
+// 3. دالة DELETE (لحذف إداري)
+export async function DELETE(req) {
   try {
     const session = await getServerSession(authOptions);
-
-    // التحقق من الجلسة
     if (!session || !OWNER_IDS.includes(session.user.id)) {
-      return NextResponse.json({ error: "غير مصرح لك بالقيام بهذه العملية" }, { status: 403 });
+      return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
     }
 
-    const { newAdminId } = await req.json();
-
-    // التحقق من صحة المدخلات
-    if (!newAdminId || newAdminId.length < 17) {
-      return NextResponse.json({ error: "يرجى إدخال ID ديسكورد صحيح ومكون من 17-19 رقم" }, { status: 400 });
-    }
-
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    
     await connectMongo();
-
-    // منع تكرار الإداري
-    const existingAdmin = await Admin.findOne({ discordId: newAdminId });
-    if (existingAdmin) {
-      return NextResponse.json({ error: "هذا الإداري موجود بالفعل في النظام" }, { status: 400 });
-    }
-
-    // الحفظ الفعلي
-    const createdAdmin = await Admin.create({
-      discordId: newAdminId,
-      addedBy: session.user.id
-    });
-
-    return NextResponse.json({ message: "تمت الإضافة بنجاح", admin: createdAdmin }, { status: 201 });
-
+    await Admin.deleteOne({ discordId: id });
+    return NextResponse.json({ message: "تم الحذف بنجاح" });
   } catch (error) {
-    console.error("Database Error:", error);
-    return NextResponse.json({ error: "فشل الاتصال بقاعدة البيانات. تأكد من إعدادات MONGODB_URI في Vercel" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
 }
