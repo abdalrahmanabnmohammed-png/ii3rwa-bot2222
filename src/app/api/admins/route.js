@@ -4,15 +4,17 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-// ⚠️ ضع الآيدي الخاص بك هنا (المالك)
-const OWNER_IDS = ["741981934447493160"]; 
+// الإعدادات الخاصة بك
+const OWNER_IDS = ["741981934447493160"]; // ⚠️ ضع الآيدي الخاص بك هنا
+const GUILD_ID = "1349181448099336303"; 
+const ADMIN_ROLE_ID = "1424535593324646431"; 
 
-// دالة لجلب معلومات المستخدم من ديسكورد (الاسم والصورة)
+// دالة جلب بيانات العضو من ديسكورد (الاسم والصورة)
 async function getDiscordUser(userId) {
   try {
     const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
       headers: {
-        Authorization: `Bot ${process.env.DISCORD_TOKEN}`, // تأكد من وجود التوكن في Secrets
+        Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
       },
     });
     if (!response.ok) return null;
@@ -28,7 +30,6 @@ export async function GET() {
     await connectMongo();
     const adminsInDb = await Admin.find({});
 
-    // جلب بيانات كل إداري من ديسكورد ليعرض الاسم والصورة
     const adminsWithDiscordData = await Promise.all(
       adminsInDb.map(async (admin) => {
         const discordData = await getDiscordUser(admin.discordId);
@@ -48,12 +49,12 @@ export async function GET() {
   }
 }
 
-// 2. إضافة إداري جديد (POST)
+// 2. إضافة إداري ومنحه الرتبة (POST)
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
     
-    // التحقق من أن القائم بالإضافة هو المالك
+    // التحقق من صلاحية المالك
     if (!session || !OWNER_IDS.includes(session.user.id)) {
       return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
     }
@@ -63,19 +64,31 @@ export async function POST(req) {
 
     await connectMongo();
     
-    // منع التكرار
     const exists = await Admin.findOne({ discordId: newAdminId });
     if (exists) return NextResponse.json({ error: "الإداري موجود مسبقاً" }, { status: 400 });
 
+    // إضافة للقاعدة
     await Admin.create({ discordId: newAdminId, addedBy: session.user.id });
-    
-    return NextResponse.json({ message: "تمت الإضافة" });
+
+    // إضافة الرتبة في ديسكورد
+    await fetch(
+      `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${newAdminId}/roles/${ADMIN_ROLE_ID}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return NextResponse.json({ message: "تمت الإضافة ومنح الرتبة" });
   } catch (error) {
     return NextResponse.json({ error: "خطأ في السيرفر" }, { status: 500 });
   }
 }
 
-// 3. حذف إداري (DELETE)
+// 3. حذف إداري وسحب الرتبة (DELETE)
 export async function DELETE(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -89,7 +102,18 @@ export async function DELETE(req) {
     await connectMongo();
     await Admin.deleteOne({ discordId: id });
 
-    return NextResponse.json({ message: "تم الحذف" });
+    // سحب الرتبة من ديسكورد
+    await fetch(
+      `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${id}/roles/${ADMIN_ROLE_ID}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+        },
+      }
+    );
+
+    return NextResponse.json({ message: "تم الحذف وسحب الرتبة" });
   } catch (error) {
     return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
