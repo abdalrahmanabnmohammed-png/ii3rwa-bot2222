@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   // ⚠️ ضع هنا الآيدي الخاص بك (المالك الرئيسي)
-  const OWNER_IDS = ["123456789012345678"]; 
+  const OWNER_IDS = ["741981934447493160"]; 
   const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
 
   // مصفوفة الأنظمة البرمجية
