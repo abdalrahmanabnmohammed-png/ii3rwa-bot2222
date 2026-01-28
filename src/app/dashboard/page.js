@@ -6,19 +6,12 @@ import { useEffect, useState } from "react";
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // ⚠️ ضع هنا الآيدي الخاص بك (المالك الرئيسي)
-  const OWNER_IDS = ["741981934447493160"]; 
+  const OWNER_IDS = ["123456789012345678"]; 
   const isOwner = session?.user?.id && OWNER_IDS.includes(session.user.id);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push('/login');
-    } else if (status === "authenticated") {
-      setLoading(false);
-    }
-  }, [status, router]);
 
   // مصفوفة الأنظمة البرمجية
   const botSystems = [
@@ -26,10 +19,46 @@ export default function DashboardPage() {
     { id: 'welcome', name: 'الترحيب واللفل', icon: '✨', color: 'from-green-500/20', desc: 'إعداد رسائل الترحيب التلقائية ونظام المستويات.' },
     { id: 'games', name: 'نظام الألعاب', icon: '🎮', color: 'from-blue-500/20', desc: 'تفعيل فعاليات وألعاب ذكاء تفاعلية.' },
     { id: 'tickets', name: 'نظام التذاكر', icon: '🎫', color: 'from-yellow-500/20', desc: 'فتح تذاكر الدعم الفني وتجهيز أقسام المساعدة.' },
-    // بطاقات خاصة بالمالك فقط
     { id: 'admin-perms', name: 'إدارة الطاقم', icon: '🔑', color: 'from-purple-500/20', desc: 'إضافة وإزالة الملاك والإداريين والتحكم بالصلاحيات.' },
     { id: 'logs', name: 'السجلات (Logs)', icon: '📜', color: 'from-gray-500/20', desc: 'مراقبة جميع تحركات وعمليات البوت في السيرفر.' },
   ];
+
+  useEffect(() => {
+    const verifyAccess = async () => {
+      if (status === "unauthenticated") {
+        router.push('/login');
+        return;
+      }
+
+      if (status === "authenticated" && session?.user?.id) {
+        // إذا كان مالكاً، اسمح له فوراً
+        if (OWNER_IDS.includes(session.user.id)) {
+          setIsAuthorized(true);
+          setLoading(false);
+          return;
+        }
+
+        // إذا لم يكن مالكاً، افحص هل هو إداري في القاعدة
+        try {
+          const res = await fetch('/api/admins/check');
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            setIsAuthorized(true);
+          } else {
+            alert("⚠️ ليس لديك صلاحية الوصول لهذه اللوحة.");
+            signOut({ callbackUrl: '/login' });
+          }
+        } catch (error) {
+          signOut({ callbackUrl: '/login' });
+        }
+        setLoading(false);
+      }
+    };
+
+    if (status !== "loading") {
+      verifyAccess();
+    }
+  }, [status, session, router]);
 
   if (loading || status === "loading") {
     return (
@@ -39,9 +68,11 @@ export default function DashboardPage() {
     );
   }
 
+  if (!isAuthorized) return null;
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-12 relative overflow-hidden" dir="rtl">
-      {/* لمسات جمالية للخلفية */}
+      {/* لمسة جمالية للخلفية */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#A62DC9] opacity-5 blur-[120px] rounded-full pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto relative z-10">
@@ -71,10 +102,10 @@ export default function DashboardPage() {
           </button>
         </header>
 
-        {/* شبكة الأنظمة البرمجية مع الفلترة */}
+        {/* شبكة البطاقات مع الفلترة */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {botSystems.map((bot) => {
-            // التحقق من الصلاحية قبل العرض (إخفاء إدارة الطاقم والسجلات عن غير الملاك)
+            // إخفاء إدارة الطاقم والسجلات عن الإداريين (تظهر للمالك فقط)
             if ((bot.id === 'admin-perms' || bot.id === 'logs') && !isOwner) {
               return null;
             }
