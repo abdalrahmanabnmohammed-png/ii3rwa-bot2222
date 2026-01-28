@@ -4,17 +4,29 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-const OWNER_IDS = ["741981934447493160", "000000000000000"]; // آيدي الملاك
+const OWNER_IDS = ["123456789012345678"]; // ضع الآيدي الخاص بك هنا
 
-// دالة لجلب بيانات المستخدم من ديسكورد باستخدام الـ Token
 async function getDiscordUser(userId) {
   try {
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      console.error("DISCORD_TOKEN is missing in Environment Variables");
+      return null;
+    }
+
     const response = await fetch(`https://discord.com/api/v10/users/${userId}`, {
-      headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
+      headers: { 
+        Authorization: `Bot ${token}`,
+        'Content-Type': 'application/json',
+      },
+      next: { revalidate: 0 } // لضمان عدم تخزين بيانات قديمة
     });
+
     if (!response.ok) return null;
     return await response.json();
-  } catch (error) { return null; }
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function GET() {
@@ -22,12 +34,12 @@ export async function GET() {
     await connectMongo();
     const adminsData = await Admin.find({});
     
-    // جلب معلومات كل إداري من ديسكورد
     const adminsWithInfo = await Promise.all(adminsData.map(async (admin) => {
       const discordInfo = await getDiscordUser(admin.discordId);
+      
       return {
         discordId: admin.discordId,
-        username: discordInfo?.username || "غير معروف",
+        username: discordInfo?.global_name || discordInfo?.username || "إداري غير معروف",
         avatar: discordInfo?.avatar 
           ? `https://cdn.discordapp.com/avatars/${admin.discordId}/${discordInfo.avatar}.png`
           : "https://cdn.discordapp.com/embed/avatars/0.png"
@@ -36,30 +48,8 @@ export async function GET() {
 
     return NextResponse.json({ admins: adminsWithInfo });
   } catch (error) {
-    return NextResponse.json({ error: "فشل الجلب" }, { status: 500 });
+    return NextResponse.json({ error: "فشل جلب البيانات" }, { status: 500 });
   }
 }
 
-export async function POST(req) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !OWNER_IDS.includes(session.user.id)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-    const { newAdminId } = await req.json();
-    await connectMongo();
-    if (await Admin.findOne({ discordId: newAdminId })) return NextResponse.json({ error: "موجود مسبقاً" }, { status: 400 });
-    await Admin.create({ discordId: newAdminId, addedBy: session.user.id });
-    return NextResponse.json({ message: "تمت الإضافة" });
-  } catch (error) { return NextResponse.json({ error: "خطأ" }, { status: 500 }); }
-}
-
-export async function DELETE(req) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !OWNER_IDS.includes(session.user.id)) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    await connectMongo();
-    await Admin.deleteOne({ discordId: id });
-    return NextResponse.json({ message: "تم الحذف" });
-  } catch (error) { return NextResponse.json({ error: "فشل الحذف" }, { status: 500 }); }
-}
+// أبقِ دوال POST و DELETE كما هي في الكود السابق
