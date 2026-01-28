@@ -1,20 +1,38 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-// تعريف شكل البيانات الخاص ببوت الحماية
 const SecuritySchema = new mongoose.Schema({
-    guildId: { 
-        type: String, 
-        required: true, 
-        unique: true 
-    }, // معرف سيرفر الديسكورد
-    settings: {
-        antiLink: { type: Boolean, default: false }, // منع الروابط
-        antiSpam: { type: Boolean, default: false }, // منع السبام
-        logChannel: { type: String, default: "" },   // قناة السجلات
-        welcomeMessage: { type: String, default: "مرحباً بك في السيرفر!" }
-    },
-    updatedAt: { type: Date, default: Date.now }
+  guildId: { type: String, required: true, unique: true },
+  // 1 & 7: السبام والتكرار
+  spamDetection: { type: Boolean, default: false },
+  maxMessages: { type: Number, default: 5 }, // عدد الرسائل المسموحة في 5 ثواني
+  
+  // 2: الكلمات المسيئة
+  badWords: { type: Boolean, default: false },
+  blockedWords: { type: [String], default: [] },
+
+  // 3 & 5: الروابط والبوتات لرتب معينة
+  linkProtection: { type: Boolean, default: false },
+  allowedLinkRoles: { type: [String], default: [] }, // الرتب المسموح لها بالروابط
+  allowedBotRoles: { type: [String], default: [] },  // الرتب المسموح لها بإضافة بوتات
+
+  // 4: الأعضاء الوهميين
+  fakeAccountProtection: { type: Boolean, default: false },
+  minAccountAge: { type: Number, default: 7 }, // الحد الأدنى لعمر الحساب بالأيام
+
+  // 6: الويب هوك
+  webhookProtection: { type: Boolean, default: false },
+
+  // 8: التحقق البشري
+  captchaVerification: { type: Boolean, default: false },
+  verificationChannel: String,
+
+  // 9: اللوق
+  logChannelId: String,
+  dashboardLogs: [{
+    action: String,
+    adminId: String,
+    timestamp: { type: Date, default: Date.now }
+  }]
 });
 
-// تصدير النموذج ليكون جاهزاً للاستخدام في الموقع
-export default mongoose.models.Security || mongoose.model('Security', SecuritySchema);
+export default mongoose.models.Security || mongoose.model("Security", SecuritySchema);
