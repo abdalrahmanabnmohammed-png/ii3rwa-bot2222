@@ -1,19 +1,18 @@
 import connectMongo from "@/lib/mongodb";
 import Admin from "@/models/Admin";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ ok: false }, { status: 401 });
 
-  if (!id) return NextResponse.json({ error: "ID مطلوب" }, { status: 400 });
+  const OWNER_IDS = ["123456789012345678"]; // ضع الآيدي الخاص بك
+  if (OWNER_IDS.includes(session.user.id)) return NextResponse.json({ ok: true });
 
   await connectMongo();
-  const isAdmin = await Admin.findOne({ discordId: id });
-
-  if (isAdmin) {
-    return NextResponse.json({ authorized: true });
-  } else {
-    return NextResponse.json({ authorized: false }, { status: 403 });
-  }
+  const isAdmin = await Admin.findOne({ discordId: session.user.id });
+  
+  return NextResponse.json({ ok: !!isAdmin });
 }
