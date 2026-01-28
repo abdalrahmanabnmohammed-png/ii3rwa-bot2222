@@ -1,13 +1,12 @@
 import connectMongo from "@/lib/mongodb";
 import Admin from "@/models/Admin";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // المسار المصحح باستخدام @
 import { NextResponse } from "next/server";
 
-// قائمة الملاك (يجب أن تتطابق مع الصفحة الرئيسية)
-const OWNER_IDS = ["741981934447493160", "000000000000000000"]; 
+// قائمة الملاك (تأكد من وضع IDs الملاك هنا)
+const OWNER_IDS = ["741981934447493160", "0000000000000000"]; 
 
-// دالة جلب قائمة الإداريين
 export async function GET() {
   try {
     await connectMongo();
@@ -18,14 +17,13 @@ export async function GET() {
   }
 }
 
-// دالة إضافة إداري جديد
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
     
-    // تأمين: الملاك فقط هم من يرسلون للقاعدة
+    // فحص الصلاحية: الملاك فقط هم من يضيفون للقاعدة
     if (!session || !OWNER_IDS.includes(session.user.id)) {
-      return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
+      return NextResponse.json({ error: "غير مصرح لك - يجب أن تكون مالكاً" }, { status: 403 });
     }
 
     const { newAdminId } = await req.json();
@@ -33,7 +31,6 @@ export async function POST(req) {
 
     await connectMongo();
     
-    // منع التكرار
     const exists = await Admin.findOne({ discordId: newAdminId });
     if (exists) return NextResponse.json({ error: "هذا الإداري موجود بالفعل" }, { status: 400 });
 
@@ -44,6 +41,7 @@ export async function POST(req) {
 
     return NextResponse.json({ message: "تمت الإضافة", admin: newAdmin });
   } catch (error) {
+    console.error("Admin POST Error:", error);
     return NextResponse.json({ error: "حدث خطأ في السيرفر" }, { status: 500 });
   }
 }
